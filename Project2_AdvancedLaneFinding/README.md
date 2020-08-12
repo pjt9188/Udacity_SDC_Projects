@@ -32,18 +32,18 @@ Here's an example of my output:
 ### Pipeline (single images)
 
 #### 1. Provide an example of a distortion-corrected image.
- Once camera is calibrated, we can use calibration values. Therefore, first i calibrate the camera using `calibrateCamera()` in [`calibration.py`](calibration.py) and then undistort images using `undistortImage() in [`calibration.py`](calibration.py)`.    
+ Once camera is calibrated, we can use calibration values. Therefore, first i calibrate the camera using `calibrateCamera()` in [`calibration.py`](calibration.py) and then undistort images using `undistortImage()` in [`calibration.py`](calibration.py).    
    
  Here's an example of distortion correction image of one of the test images:   
  ![cameraCalibration test image](output_images/cameraCalibration_udstTest.png)
    
 #### 2. Describe how (and identify where in your code) you used color transforms, gradients or other methods to create a threshold applied binary image.  Provide an example of a binary image result.
- I used a combination of color and gradient thresholds to generate a binary image. Also, I added a post-processing of image. Explanation of whole procedure is below. The function for entire binarization procedure is `cvtImg2Bin()` in [binarization.py](binarization.py)   
+ I used a combination of color and gradient thresholds to generate a binary image. Also, I added a post-processing of image. Explanation of whole procedure is below. The function for entire binarization procedure is `cvtImg2Bin()` in [`binarization.py`](binarization.py)   
    
- - Step1. Color threshold, `threshold_color()` in [binarization.py](binarization.py)   
+ - Step1. Color threshold, `threshold_color()` in [`binarization.py`](binarization.py)   
     In the lecture, we used saturation channel threshold in HLS color space. However, when i apply the image process pipeline using S channel threshold to the video `project_video.mp4`, there were some sections in the video that both lane lines are not fitted appropriately because of the shadow on the road. So i change the threshold using white and yellow color boundary in HSV colorspace in order to ignore the shadows effectively. Additionally, the thresholds of both colors are founded by manually testing.   
    
- - Step2. Gradient threshold, `threshold_gradMag()` in [binarization.py](binarization.py)   
+ - Step2. Gradient threshold, `threshold_gradMag()` in [`binarization.py`](binarization.py)   
     When i apply Gradient threshold, i used absolute value of magnitude of the gradient. Since Magnitude of gradient can be minus and plus value, take absolute value is necessary. Entire procedure for gradient threshold is below   
     1. Convert the image to grayscale.   
     2. Apply sobel gradient in both x and y direction.   
@@ -61,8 +61,8 @@ Here's an example of my output:
 
 #### 3. Describe how (and identify where in your code) you performed a perspective transform and provide an example of a transformed image.
 
- The code for my perspective transform includes a function called `warpPerspective()`, which appears in lines 32 through 70 in the file [perspective.py](perspective.py). The `warpPerspective()` function takes as input an binary image (`img_bin`), calculate both perspective transform matrix(`M`), inverse perspective transform matrix(`Minv`) and return warped image(`img_warped`).    
- I stored matrices in `M, Minv` global variables in the file [perspective.py](perspective.py). Similar with calibration matrices, both matrices can be used anytime once those are calculated. Therefore, in function `warpPerspective()`, there are codes check matrices are initialzed, if not, calculate both matrices.   
+ The code for my perspective transform includes a function called `warpPerspective()`, which appears in lines 32 through 70 in the file [`perspective.py`](perspective.py). The `warpPerspective()` function takes as input an binary image (`img_bin`), calculate both perspective transform matrix(`M`), inverse perspective transform matrix(`Minv`) and return warped image(`img_warped`).    
+ I stored matrices in `M, Minv` global variables in the file [`perspective.py`](perspective.py). Similar with calibration matrices, both matrices can be used anytime once those are calculated. Therefore, in function `warpPerspective()`, there are codes check matrices are initialzed, if not, calculate both matrices.   
  ```python
  # Get Perspective Transform Matrix(M) and Inverse transform matrix(Minv)
  global Init, M, Minv
@@ -101,19 +101,19 @@ Here's an example of my output:
 I seperate entire process into two steps
  - Step1. Detect lane pixels   
     I make two functions to detect lane lines.   
-     - Method 1. detect lane line pixels using windows(`detectLanePixels_window()` in [lineFitting.py](lineFitting.py))   
+     - Method 1. detect lane line pixels using windows(`detectLanePixels_window()` in [`lineFitting.py`](lineFitting.py))   
         This method uses windows(9 windows) to detect lane pixel.   
         First, took a histogram of the bottom half of the image and obtain the base points of the bottom window. Then, find the pixels in the windows and store the indices of the pixels in windows, adjusting the base points of windows by averaging the x coordinates of the pixels right below window. After searching all activated pixels in windows, return the indices of the detected pixels.   
         ![laneLineDetection_window](output_images/laneLineDetection_window.png)    
        
-     - Method 2. detect lane line pixels using previous lane line polynomials(`detectLanePixels_poly()` in [lineFitting.py](lineFitting.py))    
+     - Method 2. detect lane line pixels using previous lane line polynomials(`detectLanePixels_poly()` in [`lineFitting.py`](lineFitting.py))    
          This method uses previous lane line polynomials and detect the pixels around the polynomials. Since the lane doesn't change significantly, it is better way to use previous polynomials and find pixels around them. 
-         Therefore, I made a class `Line()` in [line.py](line.py) which contains polynomial coefficient buffers(`self.left_fit_recent. self.right_fit_recent`) and save recent coefficients in them. Also I made another lane line pixel detecting function `detectLanePixels_poly()` in [lineFitting.py](lineFitting.py)) which uses previous polynomials to detect pixels. The function algorithm is as follows.  
+         Therefore, I made a class `Line()` in [line.py](line.py) which contains polynomial coefficient buffers(`self.left_fit_recent. self.right_fit_recent`) and save recent coefficients in them. Also I made another lane line pixel detecting function `detectLanePixels_poly()` in [`lineFitting.py`](lineFitting.py)) which uses previous polynomials to detect pixels. The function algorithm is as follows.  
          Set the area of search based on the previous lane line polynomials within the +/- margin and then find the activated pixels in the area. Finally return the indices of the detected pixels.   
          ![laneLineDetection_poly](output_images/laneLineDetection_poly.png)   
 
 
- - Step2. Fit the pixels with second order polynomials (`fitLaneLines()` in [lineFitting.py](lineFitting.py))   
+ - Step2. Fit the pixels with second order polynomials (`fitLaneLines()` in [`lineFitting.py`](lineFitting.py))   
      Using detected pixel indices and opencv function `np.polyfit`, i got coefficients of lane line polynomials. Additionally, i made a method(`Line.averageLines()`) in the class `Line()` which calculate average of the recent coefficient(`self.left_fit_recent. self.right_fit_recent`) so that lane line become smooth and store the result in (`self.left_fit_result. self.right_fit_result`).
 
 
@@ -143,8 +143,8 @@ I seperate entire process into two steps
 
 #### 6. Provide an example image of your result plotted back down onto the road such that the lane area is identified clearly.
 
-I implemented this step in the function `warpBack()` in `perspective.py`(perspective.py)   
-This function literally warp back the image using `warpPerspective()` in `perspective.py`(perspective.py) with inverse transform matrix(`Minv` in `perspective.py`(perspective.py)) which perviously calculated by `warpPerspective()` at the first implement of perspective transform.   
+I implemented this step in the function `warpBack()` in [`perspective.py`](perspective.py)   
+This function literally warp back the image using `warpPerspective()` in `perspective.py`(perspective.py) with inverse transform matrix(`Minv` in [`perspective.py`](perspective.py)) which perviously calculated by `warpPerspective()` at the first implement of perspective transform.   
 Here is an example of my result on a test image:
 
 ![warpBack_result][output_images/warpBack_result.png]
@@ -155,7 +155,9 @@ Here is an example of my result on a test image:
 
 #### 1. Provide a link to your final video output.  Your pipeline should perform reasonably well on the entire project video (wobbly lines are ok but no catastrophic failures that would cause the car to drive off the road!).
 
-Here's a [link to my video result](output_videos/project_video.mp4)
+Here are links to my video result
+- [youtube](https://youtu.be/MKYf5nMoG8M)
+- [file](output_videos/project_video.mp4)
 
 ---
 
