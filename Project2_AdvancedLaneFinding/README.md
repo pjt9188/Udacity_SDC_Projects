@@ -121,18 +121,17 @@ I seperate entire process into two steps
 #### 5. Describe how (and identify where in your code) you calculated the radius of curvature of the lane and the position of the vehicle with respect to center.
  - Radius of curavture
    - Mathmatical calculation of radius of curvature
-   The radius of curvature at any point x of the function $x = f(y)$ is given as follows:   
+        The radius of curvature at any point x of the function $x = f(y)$ is given as follows:   
    
-   $$ R_{curve} = \frac{\left(\sqrt{1 + \left(\frac{dx}{dy}\right)^2}\right)^3}{\left\vert\frac{d^2x}{dy^2}\right\vert} $$
+       <img src="https://latex.codecogs.com/svg.latex?%5Clarge%20R_%7Bcurve%7D%20%3D%20%5Cfrac%7B%5Cleft%28%5Csqrt%7B1%20&plus;%20%5Cleft%28%5Cfrac%7Bdx%7D%7Bdy%7D%5Cright%29%5E2%7D%5Cright%29%5E3%7D%7B%5Cleft%5Cvert%5Cfrac%7Bd%5E2x%7D%7Bdy%5E2%7D%5Cright%5Cvert%7D">
    
-   In the case of the second order polynomial above, the first and second derivatives are:   
-   $$ f'(y) = \frac{dx}{dy} = 2Ay + B$$
-   $$ f''(y) = \frac{d^2x}{dy^2} = 2A$$
+        In the case of the second order polynomial above, the first and second derivatives are:   
+        <img src = "https://latex.codecogs.com/svg.latex?%5Clarge%20f%27%28y%29%20%3D%20%5Cfrac%7Bdx%7D%7Bdy%7D%20%3D%202Ay%20&plus;%20B">
+        <img src = "https://latex.codecogs.com/svg.latex?%5Clarge%20f%27%27%28y%29%20%3D%20%5Cfrac%7Bd%5E2x%7D%7Bdy%5E2%7D%20%3D%202A">
       
-   So, the equation for radius of curvature becomes:   
-   $$ R_{curve} = \frac{ \left(\sqrt{1 + \left(2Ay + B\right)^2}\right)^3 }{\left\vert2A\right\vert} $$
-
-   The $y$ values of your image increase from top to bottom. I measured the radius of curvature closest to vehicle, and evaluate the formula above at the $y$ value corresponding to the bottom of the image.
+        So, the equation for radius of curvature becomes:   
+        <img src = "https://latex.codecogs.com/svg.latex?%5Clarge%20R_%7Bcurve%7D%20%3D%20%5Cfrac%7B%20%5Cleft%28%5Csqrt%7B1%20&plus;%20%5Cleft%282Ay%20&plus;%20B%5Cright%29%5E2%7D%5Cright%29%5E3%20%7D%7B%5Cleft%5Cvert2A%5Cright%5Cvert%7D">   
+        The `y` values of your image increase from top to bottom. I measured the radius of curvature closest to vehicle, and evaluate the formula above at the `y` value corresponding to the bottom of the image.
 
    - Code for radius of curvature   
       I made a method `Line.measureRoc()` in the class `Line()` which calculates radius of curvature using average of the recent polynomial coefficients and mathmatic equation.   
@@ -147,7 +146,7 @@ I implemented this step in the function `warpBack()` in [`perspective.py`](persp
 This function literally warp back the image using `warpPerspective()` in `perspective.py`(perspective.py) with inverse transform matrix(`Minv` in [`perspective.py`](perspective.py)) which perviously calculated by `warpPerspective()` at the first implement of perspective transform.   
 Here is an example of my result on a test image:
 
-![warpBack_result][output_images/warpBack_result.png]
+![warpBack_result](output_images/warpBack_result.png)
 
 ---
 
