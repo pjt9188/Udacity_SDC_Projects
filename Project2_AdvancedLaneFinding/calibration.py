@@ -63,7 +63,7 @@ def calibrateCamera(dir_cameraCalibration):
             objpoints.append(objp)
             imgpoints.append(corners)
     
-    # Set camera matrix(mtx), distortion coefficient(dist), rvecs(rotation vectors), tvecs(translation vectors)
+    # Calculate camera matrix(mtx), distortion coefficient(dist), rvecs(rotation vectors), tvecs(translation vectors)
     global mtx, dist, rvecs, tvecs
     ret, mtx, dist, rvecs, tvecs = cv2.calibrateCamera(objpoints, imgpoints, img_size, None, None)
 
@@ -89,10 +89,52 @@ def undistortImage(img, **kwargs):
     for key, value in kwargs.items():
         if key == 'verbose' and value == True:
             f, (ax1, ax2) = plt.subplots(1, 2, figsize = (32, 9))
-            ax1.set_title('Original Image', fontsize=visual_fontsize)
+            ax1.set_title('Original Image', fontsize=visual_fontsize, fontweight=visual_fontweight)
             ax1.imshow(img)
-            ax2.set_title('Undistorted Image', fontsize=visual_fontsize)
+            ax2.set_title('Undistorted Image', fontsize=visual_fontsize, fontweight=visual_fontweight)
             ax2.imshow(img_udst)
             plt.show()
     
     return img_udst
+
+if __name__ == "__main__":
+    ## Make Example Images ##
+    # Read calibration example image
+    img = "camera_cal/calibration1.jpg"
+    img = cv2.imread(img)
+    img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+    
+    # Calculate camera calibration values
+    calibrateCamera("camera_cal")
+
+    # Undistort Image
+    img_udst = undistortImage(img)
+    
+    ## Visualization ##
+    f, (ax1, ax2) = plt.subplots(1, 2, figsize = (32, 9))
+    ax1.set_title('Original Chessboard Image', fontsize=visual_fontsize, fontweight=visual_fontweight)
+    ax1.imshow(img)
+    ax2.set_title('Undistorted Chessboard Image', fontsize=visual_fontsize, fontweight=visual_fontweight)
+    ax2.imshow(img_udst)
+    # plt.show()
+    plt.savefig('output_images/cameraCalibration_udstCali.png')
+
+    # Read test example image
+    img = "test_images/test1.jpg"
+    img = cv2.imread(img)
+    img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+    
+    # Calculate camera calibration values
+    calibrateCamera("camera_cal")
+
+    # Undistort Image
+    img_udst = undistortImage(img)
+    
+    ## Visualization ##
+    f, (ax1, ax2) = plt.subplots(1, 2, figsize = (32, 9))
+    ax1.set_title('Original Test Image', fontsize=visual_fontsize, fontweight=visual_fontweight)
+    ax1.imshow(img)
+    ax2.set_title('Undistorted Test Image', fontsize=visual_fontsize, fontweight=visual_fontweight)
+    ax2.imshow(img_udst)
+    # plt.show()
+    plt.savefig('output_images/cameraCalibration_udstTest.png')

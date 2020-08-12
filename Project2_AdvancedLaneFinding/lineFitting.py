@@ -3,6 +3,9 @@ import matplotlib.pyplot as plt
 import cv2
 
 from cfg import *
+from calibration import calibrateCamera, undistortImage
+from binarization import cvtImg2Bin
+from perspective import warpPerspective
 
 '''
 # Global Variables
@@ -26,17 +29,17 @@ minpix = 50
 
 def detectLanePixels_window(img_warped, **kwargs):
     '''
-    # Function Description
+    ## Function Description
     Extract left and right lane pixel coordinates from warped, binary image using windows
     
-    # Parameter
+    ## Parameter
     img_warped    = warped(bird's view), binary image\n
     **kwargs      = keyword arguments\n
     
-    # kwargs
+    ## kwargs
     verbose       = show the image with windows(green), left lane(red), right lane(blue) when it is True\n
     
-    # Return
+    ## Return
     leftx_inds    = x indices of left lane line\n
     lefty_inds    = y indices of left lane line\n
     rightx_inds   = x indices of right lane line\n
@@ -115,29 +118,30 @@ def detectLanePixels_window(img_warped, **kwargs):
     
     
     ## Visualization ##
-    # Left lane color -> RED, RIght lane color -> Blue
+    # Left lane color -> RED, Right lane color -> Blue
     if visual == True:
         img_visual[lefty_inds, leftx_inds] = [255, 0, 0]
         img_visual[righty_inds, rightx_inds] = [0, 0, 255]
         
         f = plt.figure(figsize = (16, 9))
-        plt.title('Left & Right Lane Detection using windows', fontsize = visual_fontsize)
+        plt.title('Left & Right Lane Detection using windows', fontsize = visual_fontsize, fontweight = visual_fontweight)
         plt.imshow(img_visual)
+        plt.show()
     
     return leftx_inds, lefty_inds, rightx_inds, righty_inds
 
 def fitLaneLines(leftx_inds, lefty_inds, rightx_inds, righty_inds):
     '''
-    # Function Description
+    ## Function Description
     Obtain coefficients of second order polynomial function of lane lines
     
-    # Parameter
+    ## Parameter
     leftx_inds    = x indices of left lane line\n
     lefty_inds    = y indices of left lane line\n
     rightx_inds   = x indices of right lane line\n
     righty_inds   = y indices of right lane line\n
     
-    # Return
+    ## Return
     left_fit      = coefficients of second order polynomial function of left lane lines\n
     right_fit     = coefficients of second order polynomial function of right lane lines\n
     left_fitx     = x coordinates of fitted left lane line\n
@@ -162,19 +166,19 @@ def fitLaneLines(leftx_inds, lefty_inds, rightx_inds, righty_inds):
 
 def detectLanePixels_poly(img_warped, left_fit, right_fit, **kwargs):
     '''
-    # Function Description
+    ## Function Description
     Extract left and right lane pixel coordinates from warped, binary image using previous lane line coefficients
     
-    # Parameter
+    ## Parameter
     img_warped    = warped(bird's view), binary image\n
     left_fit      = coefficients of second order polynomial function of left lane lines\n
     right_fit     = coefficients of second order polynomial function of right lane lines\n   
     **kwargs      = keyword arguments\n
     
-    # kwargs
+    ## kwargs
     verbose       = show the image with windows(green), left lane(red), right lane(blue) when it is True\n
     
-    # Return
+    ## Return
     leftx_inds    = x indices of left lane line\n
     lefty_inds    = y indices of left lane line\n
     rightx_inds   = x indices of right lane line\n
@@ -187,7 +191,7 @@ def detectLanePixels_poly(img_warped, left_fit, right_fit, **kwargs):
     # Grab activated pixels
     nonzeroy, nonzerox = img_warped.nonzero()
     
-    # Set the area of search based on activated x-values within the +/- margin of polynomial #
+    # Set the area of search based on the previous lane line polynomials within the +/- margin #
     left_lane_inds = ((nonzerox > (left_fit[0]*(nonzeroy**2) + left_fit[1]*nonzeroy + left_fit[2] - margin)) 
                       & (nonzerox < (left_fit[0]*(nonzeroy**2) + left_fit[1]*nonzeroy + left_fit[2] + margin)))
     right_lane_inds = ((nonzerox > (right_fit[0]*(nonzeroy**2) + right_fit[1]*nonzeroy + right_fit[2] - margin)) 
@@ -230,8 +234,33 @@ def detectLanePixels_poly(img_warped, left_fit, right_fit, **kwargs):
             img_visual = cv2.addWeighted(out_img, 1, window_img, 0.3, 0)
             
             f = plt.figure(figsize = (16, 9))
-            plt.title('Left & Right Lane Detection using polynomial', fontsize = visual_fontsize)
+            plt.title('Left & Right Lane Detection using polynomial', fontsize = visual_fontsize, fontweight = visual_fontweight)
             plt.imshow(img_visual)
+            plt.show()
             ## End visualization steps ##
     
     return leftx_inds, lefty_inds, rightx_inds, righty_inds
+
+
+if __name__ == '__main__':
+    # Read test example image
+    img = "test_images/test3.jpg"
+    img = cv2.imread(img)
+    img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+    
+    # Calculate camera calibration values
+    calibrateCamera("camera_cal")
+
+    # Undistort image
+    img_udst = undistortImage(img)
+    # Binarize image
+    img_bin = cvtImg2Bin(img_udst)
+    # Warp image
+    img_warped = warpPerspective(img_bin)
+    
+    
+    ## Visualization ##
+    # Plotting thresholded images
+    leftx_inds, lefty_inds, rightx_inds, righty_inds = detectLanePixels_window(img_warped, verbose = True)
+    left_fit, right_fit, left_fitx, right_fitx, ploty = fitLaneLines(leftx_inds, lefty_inds, rightx_inds, righty_inds)
+    leftx_inds, lefty_inds, rightx_inds, righty_inds = detectLanePixels_poly(img_warped, left_fit, right_fit, verbose = True)

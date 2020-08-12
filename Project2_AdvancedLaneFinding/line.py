@@ -112,6 +112,16 @@ class Line:
         self.averageLines()
         return self.left_fitx_result, self.right_fitx_result, self.ploty
 
+    def getWarpedLinesImage(self, img_warped):
+        warped_zero_left    = np.zeros_like(img_warped)
+        warped_zero_right   = np.zeros_like(img_warped)
+
+        warped_zero_left[self.lefty_inds, self.leftx_inds]      = 1
+        warped_zero_right[self.righty_inds, self.rightx_inds]   = 1
+
+        img_warpedLines = np.dstack(( warped_zero_left, np.zeros_like(img_warped), warped_zero_right)) * 255
+        return img_warpedLines
+
     def measureRoc(self):
         '''
         # Function Description
