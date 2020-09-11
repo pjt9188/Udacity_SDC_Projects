@@ -30,9 +30,9 @@ model.add(Dense(1))
 print(model.summary())
 
 model.compile(loss = 'mse', optimizer = 'adam')
-model.fit_generator(generator = generate_data_batch(ENV, train_data, augment_data= True, bias = 0.8),
+model.fit_generator(generator = generate_data_batch(ENV, train_data, augment_data= True),
                     steps_per_epoch= 5, epochs=15,
-                    validation_data= generate_data_batch(ENV, valid_data, augment_data= False, bias = 1.0),
+                    validation_data= generate_data_batch(ENV, valid_data, augment_data= False),
                     validation_steps=2)
 
 model.save('model.h5')

@@ -12,7 +12,6 @@ CONFIG = {
     'delta_correction'          : 0.08,
     'batch_size'                : 1285,
 
-    'augmentation_steer_sigma'  : 0.2,
     'augmentation_value_min'    : 0.2,
     'augmentation_value_max'    : 1.5
 }
