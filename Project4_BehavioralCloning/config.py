@@ -9,7 +9,7 @@ CONFIG = {
     'input_height'              : 160,
     'input_width'               : 320,
     'input_channels'            : 3,
-    'delta_correction'          : 0.1,
+    'delta_correction'          : 0.08,
     'batch_size'                : 1285,
 
     'augmentation_steer_sigma'  : 0.2,
