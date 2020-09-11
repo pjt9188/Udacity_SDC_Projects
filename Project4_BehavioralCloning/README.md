@@ -203,10 +203,11 @@ _________________________________________________________________
 
 As i mentioned, i only use dataset provided in workspace which only has about 8000 images per camera.
 
-**Exclude 90% of `steer == 0` Data**
+**Exclude 90% of `steer == 0` Data**   
 After building the model, i trained the model with the center images and simulate it. The car was go well on the straight line but when it met first curve, it just go straight and went off the course.
 
-I found that about 53% of data was `steer == 0`. And i visualized the steer histogram and see the distribution of the steer data. The below historgram is steer data in the trainset(size = 6428).
+I found that about 53% of data was `steer == 0`. And i visualized the steer histogram and see the distribution of the steer data. The below historgram is steer data in the trainset(size = 6428).   
+
 ![Steer Data Histogram(Original)](examples/steerHist_original.png)
 
 I supposed this bias made my model to be fool. So i exclude 90% of steer==0 data when making the batch dataset.
@@ -222,10 +223,10 @@ if steer == 0:
 ...
 ```
 
-**Use Left, Right Camera Images with adjusted steering**
+**Use Left, Right Camera Images with adjusted steering**   
 Only half of data remains after excluding `steer == 0` data. More data is needed to train the model. Therefore, i used left, right camera images with steering data which is added or subtracted by `delta_correction` in [config.py](config.py).
 
-|<img src = "data/IMG/left_2016_12_01_13_30_48_287.jpg" width = 200>|<img src = "data/IMG/center_2016_12_01_13_30_48_287.jpg" width = 200>|<img src = "data/IMG/right_2016_12_01_13_30_48_287.jpg" width = 200>|
+|<img src = "examples/left.jpg" width = 200>|<img src = "examples/center.jpg" width = 200>|<img src = "examples/right.jpg" width = 200>|
 |:---:|:---:|:---:|
 |Left image|Center image|Right image|
 
@@ -249,7 +250,7 @@ elif camera == 'right':
     steer   = steer - delta_correction
 ```
 
-**Use Flipped Images**
+**Use Flipped Images**   
 I also use flipped image to train the model. This makes model being trainned in the different track. In the code, i flipped image and reverse the sign of steering with 50% probability.
 ```python
 # dataPreprocess.py
@@ -266,7 +267,7 @@ Here is the steering data distribution after applying all steps above
 <img src = "examples/steerHist_preProcessed.png" width = 500>
 
 
-**Change Brightness of the Images**
+**Change Brightness of the Images**   
 After applying all steps above, i trained my model and it works pretty well! But when the car met the shadows above the road, the car went off the track.
 
 So i made add steps to change brightness of the images, in order for my model to keep on the track regardless of the shadows on the track.
@@ -287,16 +288,16 @@ if CONFIG['input_channels'] == 3:
 |Random brightness changed image|
 
 
-**Shuffle Dataset & Split training and Validation Set**
+**Shuffle Dataset & Split training and Validation Set**   
 Lastly, I randomly shuffled the data set and put 20% of the data into a validation set.    
 Preprocessing step is applied only to tranning set in order to test the model. The validation set helped determine if the model was over or under fitting. 
 
-**Training Details**
+**Training Details**   
 The ideal number of epochs was 15 for my trainning set with batch size 1285 which is 20% of the trainning set. Each epoch contains 5 steps for a batch. I used an adam optimizer so that manually training the learning rate wasn't necessary.
 
 Also the `delta_correction` was `0.08` and brightness is multiplied randomly from `0.2` to `1.5`
 
-**Example of Final Result**
+**Example of Final Result**   
 ![result clip](examples/video_capture.gif)
 
 (Full Video : [Youtube](https://youtu.be/JtHwKQwcniQ))
