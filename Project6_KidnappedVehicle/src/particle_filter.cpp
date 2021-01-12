@@ -81,9 +81,18 @@ void ParticleFilter::prediction(double delta_t, double std_pos[],
 
     double x_pred, y_pred, theta_pred;
     
-    theta_pred      = std::fmod((theta_old + yaw_rate * delta_t) , (2 * M_PI));
-    x_pred          = x_old + velocity / yaw_rate * (sin(theta_pred) - sin(theta_old));
-    y_pred          = y_old + velocity / yaw_rate * (cos(theta_old) - cos(theta_pred));
+    // Assume that yaw_rate resolution is 1e-5
+    if(fabs(yaw_rate) > 1e-5){
+      theta_pred      = std::fmod((theta_old + yaw_rate * delta_t) , (2 * M_PI));
+      x_pred          = x_old + velocity / yaw_rate * (sin(theta_pred) - sin(theta_old));
+      y_pred          = y_old + velocity / yaw_rate * (cos(theta_old) - cos(theta_pred));
+    }
+    else{
+      theta_pred      = theta_old;
+      x_pred          = x_old + velocity * delta_t * cos(theta_old);
+      y_pred          = y_old + velocity * delta_t * sin(theta_old);
+    }
+    
 
     normal_distribution<double> dist_x(x_pred, std_pos[0]);
     normal_distribution<double> dist_y(y_pred, std_pos[1]);
@@ -178,6 +187,7 @@ void ParticleFilter::updateWeights(double sensor_range, double std_landmark[],
     for(std::vector<LandmarkObs>::size_type j = 0; j < observations_global.size(); ++j){
       particles[i].associations.push_back(observations_global[j].id);
     }
+
     /**
      * Calculate weight of the particle
      */
