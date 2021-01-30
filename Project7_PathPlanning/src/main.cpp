@@ -97,11 +97,60 @@ int main() {
            * TODO: define a path made up of (x,y) points that the car will visit
            *   sequentially every .02 seconds
            */
-          double dist_inc = 0.4;
-          for(int i=0; i<50; i++){
-            next_x_vals.push_back(car_x + i*dist_inc*cos(deg2rad(car_yaw)));
-            next_y_vals.push_back(car_y + i*dist_inc*sin(deg2rad(car_yaw)));
+          double pos_x;
+          double pos_y;
+          double pos_s;
+          double pos_d;
+          double angle;
+          int path_size = previous_path_x.size();
+          
+          /**
+           * Save previous remained path list in the next path list
+           */
+
+          for (int i = 0; i < path_size; ++i) {
+            next_x_vals.push_back(previous_path_x[i]);
+            next_y_vals.push_back(previous_path_y[i]);
           }
+
+          /**
+           * Find last previous path
+           */
+
+          if (path_size == 0) {
+            pos_x = car_x;
+            pos_y = car_y;
+            angle = deg2rad(car_yaw);
+            pos_s = car_s;
+            pos_d = car_d;
+          } else {
+            pos_x = previous_path_x[path_size-1];
+            pos_y = previous_path_y[path_size-1];
+            double pos_x2 = previous_path_x[path_size-2];
+            double pos_y2 = previous_path_y[path_size-2];
+            angle = atan2(pos_y-pos_y2,pos_x-pos_x2);
+
+            vector<double> pos_sd = getFrenet(pos_x, pos_y, angle, map_waypoints_x, map_waypoints_y);
+            pos_s = pos_sd[0];
+            pos_d = pos_sd[1];
+          }
+
+          /**
+           * Define next path until the next path list is filled with 50 path points
+           */
+
+          double dist_inc = 0.4;
+          for (int i = 0; i < 50-path_size; ++i) {    
+            double next_s = pos_s + (i+1)*dist_inc;
+            double next_d = pos_d;
+            vector<double> next_xy = getXY(next_s, next_d, map_waypoints_s, map_waypoints_x, map_waypoints_y);
+
+            next_x_vals.push_back(next_xy[0]);
+            next_y_vals.push_back(next_xy[1]);
+          }
+          /**
+           * END
+           */
 
           msgJson["next_x"] = next_x_vals;
           msgJson["next_y"] = next_y_vals;
