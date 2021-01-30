@@ -7,6 +7,7 @@
 #include "Eigen-3.3/Eigen/QR"
 #include "helpers.h"
 #include "json.hpp"
+#include "spline.h"
 
 // for convenience
 using nlohmann::json;
@@ -96,58 +97,84 @@ int main() {
           /**
            * TODO: define a path made up of (x,y) points that the car will visit
            *   sequentially every .02 seconds
-           */
-          double pos_x;
-          double pos_y;
-          double pos_s;
-          double pos_d;
-          double angle;
+           */        
+        
+          // Set up some configurations
+          int lane = 1;
+          double ref_vel = 49.5;  // mph
+
+          // Save previous remained path list in the next path list
           int path_size = previous_path_x.size();
           
-          /**
-           * Save previous remained path list in the next path list
-           */
-
           for (int i = 0; i < path_size; ++i) {
             next_x_vals.push_back(previous_path_x[i]);
             next_y_vals.push_back(previous_path_y[i]);
           }
 
-          /**
-           * Find last previous path
-           */
+          // Make spline using previous path
+          //  Add two previous points which is in the previous path to the point lists 
+          double ref_x, ref_y, ref_yaw;
+          double ref_x_prev, ref_y_prev;
+          vector<double> ptsx, ptsy;
 
-          if (path_size == 0) {
-            pos_x = car_x;
-            pos_y = car_y;
-            angle = deg2rad(car_yaw);
-            pos_s = car_s;
-            pos_d = car_d;
-          } else {
-            pos_x = previous_path_x[path_size-1];
-            pos_y = previous_path_y[path_size-1];
-            double pos_x2 = previous_path_x[path_size-2];
-            double pos_y2 = previous_path_y[path_size-2];
-            angle = atan2(pos_y-pos_y2,pos_x-pos_x2);
-
-            vector<double> pos_sd = getFrenet(pos_x, pos_y, angle, map_waypoints_x, map_waypoints_y);
-            pos_s = pos_sd[0];
-            pos_d = pos_sd[1];
+          if (path_size < 2) {
+            ref_x = car_x;
+            ref_y = car_y;
+            ref_yaw = deg2rad(car_yaw);
+            ref_x_prev = car_x - cos(ref_yaw);
+            ref_y_prev = car_y - sin(ref_yaw);
+          } 
+          else {
+            ref_x = previous_path_x[path_size-1];
+            ref_y = previous_path_y[path_size-1];
+            ref_x_prev = previous_path_x[path_size-2];
+            ref_y_prev = previous_path_y[path_size-2];
+            ref_yaw = atan2(ref_y-ref_y_prev,ref_x-ref_x_prev);
           }
 
-          /**
-           * Define next path until the next path list is filled with 50 path points
-           */
+          ptsx.push_back(ref_x_prev);
+          ptsx.push_back(ref_x);
+          
+          ptsy.push_back(ref_y_prev);
+          ptsy.push_back(ref_y);
 
-          double dist_inc = 0.4;
-          for (int i = 0; i < 50-path_size; ++i) {    
-            double next_s = pos_s + (i+1)*dist_inc;
-            double next_d = pos_d;
-            vector<double> next_xy = getXY(next_s, next_d, map_waypoints_s, map_waypoints_x, map_waypoints_y);
-
-            next_x_vals.push_back(next_xy[0]);
-            next_y_vals.push_back(next_xy[1]);
+          //  Add three points which is evenly spaced by 30 meters ahead from the starting reference
+          vector<double> next_wpt;
+          for (int i = 1; i <= 3; i++){
+            next_wpt = getXY(car_s + 30*i, (4*lane - 2), map_waypoints_s, map_waypoints_x, map_waypoints_y);
+            ptsx.push_back(next_wpt[0]);
+            ptsy.push_back(next_wpt[1]);
           }
+
+          //  Convert points into local coordinates
+          for(int i = 0; i<ptsx.size(); i++){
+            double shift_x = ptsx[i] - ref_x;
+            double shift_y = ptsy[i] - ref_y;
+
+            ptsx[i] =  cos(ref_yaw) * shift_x + sin(ref_yaw) * shift_y;
+            ptsy[i] = -sin(ref_yaw) * shift_x + cos(ref_yaw) * shift_y;
+          }
+
+          //  Create a spline in local coordinates
+          tk::spline s_local;
+          s_local.set_points(ptsx, ptsy);
+
+          double target_x = 30.0;
+          double target_y = s_local(target_x);
+          double target_dist = sqrt(target_x * target_x + target_y * target_y);
+          double N = target_dist / ((ref_vel / MPS2MPH) * 0.02);
+          double target_dx = target_x / N;
+
+          for(int i = 1; i <= 50 - previous_path_x.size(); i++){
+            double x_local = target_dx * i;
+            double y_local = s_local(x_local);
+            double x_glob = cos(ref_yaw) * x_local - sin(ref_yaw) * y_local + ref_x;
+            double y_glob = sin(ref_yaw) * x_local + cos(ref_yaw) * y_local + ref_y;
+
+            next_x_vals.push_back(x_glob);
+            next_y_vals.push_back(y_glob);
+          }
+      
           /**
            * END
            */

@@ -5,6 +5,8 @@
 #include <string>
 #include <vector>
 
+#define MPS2MPH 2.237
+
 // for convenience
 using std::string;
 using std::vector;
