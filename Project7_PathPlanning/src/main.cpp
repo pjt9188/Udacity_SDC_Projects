@@ -14,6 +14,9 @@ using nlohmann::json;
 using std::string;
 using std::vector;
 
+int     lane = 2;
+double  ref_vel = 0; // mph 
+
 int main() {
   uWS::Hub h;
 
@@ -99,14 +102,48 @@ int main() {
            *   sequentially every .02 seconds
            */        
         
-          // Set up some configurations
-          int lane = 1;
-          double ref_vel = 49.5;  // mph
+          /*******************************   Congfiguration   **************************************/
+          // int     lane = 2;
+          // double  ref_vel = 0; // mph
+          int     prev_size = previous_path_x.size(); // Save previous remained path list in the next path list
+          double  safety_distance = 30; // m
 
-          // Save previous remained path list in the next path list
-          int path_size = previous_path_x.size();
+          /********************************   Sensor Fusion   **************************************/
           
-          for (int i = 0; i < path_size; ++i) {
+          bool too_close = false;
+
+          for(int i = 0; i < sensor_fusion.size(); i++){
+            float d = sensor_fusion[i][6];
+            
+            // When the adjacent car is in the same lane
+            if(d > (4*lane - 4) && d < (4*lane) ){
+              double  vx           = sensor_fusion[i][3];
+              double  vy           = sensor_fusion[i][4];
+              double  check_speed  = sqrt(vx*vx + vy*vy);
+              double  check_car_s  = sensor_fusion[i][5];
+
+              check_car_s += ((double)prev_size * 0.02 * check_speed);
+
+              // check s value whether it is greater than mine + safety_distance
+              if( (check_car_s > end_path_s) && ((check_car_s - end_path_s) < safety_distance) ){
+                // ref_vel = check_speed * MPS2MPH;
+                too_close = true;
+              }
+            }
+          }
+
+          if(too_close){
+            ref_vel -= 0.224;
+          }
+          else if(ref_vel < (MAX_VEL - 0.5)){
+            // ref_vel = ((ref_vel + 0.224) > (MAX_VEL - 0.5)) ? (MAX_VEL - 0.5) : (ref_vel + 0.224);
+            ref_vel += 0.224;
+          }
+
+          std::cout << ref_vel << std::endl;
+
+          /********************************   Path Planning   **************************************/          
+          for (int i = 0; i < prev_size; ++i) {
             next_x_vals.push_back(previous_path_x[i]);
             next_y_vals.push_back(previous_path_y[i]);
           }
@@ -117,7 +154,7 @@ int main() {
           double ref_x_prev, ref_y_prev;
           vector<double> ptsx, ptsy;
 
-          if (path_size < 2) {
+          if (prev_size < 2) {
             ref_x = car_x;
             ref_y = car_y;
             ref_yaw = deg2rad(car_yaw);
@@ -125,10 +162,10 @@ int main() {
             ref_y_prev = car_y - sin(ref_yaw);
           } 
           else {
-            ref_x = previous_path_x[path_size-1];
-            ref_y = previous_path_y[path_size-1];
-            ref_x_prev = previous_path_x[path_size-2];
-            ref_y_prev = previous_path_y[path_size-2];
+            ref_x = previous_path_x[prev_size-1];
+            ref_y = previous_path_y[prev_size-1];
+            ref_x_prev = previous_path_x[prev_size-2];
+            ref_y_prev = previous_path_y[prev_size-2];
             ref_yaw = atan2(ref_y-ref_y_prev,ref_x-ref_x_prev);
           }
 
@@ -162,10 +199,19 @@ int main() {
           double target_x = 30.0;
           double target_y = s_local(target_x);
           double target_dist = sqrt(target_x * target_x + target_y * target_y);
-          double N = target_dist / ((ref_vel / MPS2MPH) * 0.02);
-          double target_dx = target_x / N;
-
+          
           for(int i = 1; i <= 50 - previous_path_x.size(); i++){
+            // if(too_close){
+            //   double delta_acc = MAX_JERK * 0.02 * 0.9;
+            //   ref_vel -= delta_acc*0.02;
+            // }
+            // else if(ref_vel < (MAX_VEL - 0.5)){
+            //   ref_vel = ( (ref_vel + delta_acc*0.02) > (MAX_VEL - 0.5) ) ? (MAX_VEL - 0.5) : (ref_vel + delta_acc*0.02);
+            // }
+
+            double N = target_dist / ((ref_vel / MPS2MPH) * 0.02);
+            double target_dx = target_x / N;
+
             double x_local = target_dx * i;
             double y_local = s_local(x_local);
             double x_glob = cos(ref_yaw) * x_local - sin(ref_yaw) * y_local + ref_x;

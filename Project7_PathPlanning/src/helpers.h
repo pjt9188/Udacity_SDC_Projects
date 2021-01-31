@@ -5,7 +5,10 @@
 #include <string>
 #include <vector>
 
-#define MPS2MPH 2.237
+#define MPS2MPH   2.237
+#define MAX_VEL   50    //mph
+#define MAX_ACC   10    //mps^2
+#define MAX_JERK  10    //mps^3
 
 // for convenience
 using std::string;
