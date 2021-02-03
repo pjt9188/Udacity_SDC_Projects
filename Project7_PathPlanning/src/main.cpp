@@ -14,8 +14,16 @@ using nlohmann::json;
 using std::string;
 using std::vector;
 
-int     lane = 2;
-double  ref_vel = 0; // mph 
+/*******************************   States   *************************************/
+int     car_state = KL;
+int     car_lane = 1;
+double  ref_vel = 0; // mps
+
+bool    front_car_is_too_close         = false;
+bool    can_change_to_the_left_lane    = false;
+bool    can_change_to_the_right_lane   = false;
+
+/********************************************************************************/
 
 int main() {
   uWS::Hub h;
@@ -102,47 +110,172 @@ int main() {
            *   sequentially every .02 seconds
            */        
         
-          /*******************************   Congfiguration   **************************************/
-          // int     lane = 2;
-          // double  ref_vel = 0; // mph
-          int     prev_size = previous_path_x.size(); // Save previous remained path list in the next path list
-          double  safety_distance = 30; // m
+          /*******************************   Congfiguration   *************************************/
+          const double  dt = 0.02;
+          const int     num_of_path_points = 50;
+          const double  safety_distance = 30; // m
 
-          /********************************   Sensor Fusion   **************************************/
-          
-          bool too_close = false;
+          const int     prev_size = previous_path_x.size(); // Save previous remained path list in the next path list
+
+          ref_vel   = car_speed;
+
+          car_lane  = (int)car_d / 4;
+          front_car_is_too_close         = false;
+          can_change_to_the_left_lane    = (car_lane == 1) || (car_lane == 2);
+          can_change_to_the_right_lane   = (car_lane == 0) || (car_lane == 1);
+
+          /*******************************   Prediction   *****************************************/
+          vector<vector<double>> prediction;
 
           for(int i = 0; i < sensor_fusion.size(); i++){
-            float d = sensor_fusion[i][6];
-            
-            // When the adjacent car is in the same lane
-            if(d > (4*lane - 4) && d < (4*lane) ){
-              double  vx           = sensor_fusion[i][3];
-              double  vy           = sensor_fusion[i][4];
-              double  check_speed  = sqrt(vx*vx + vy*vy);
-              double  check_car_s  = sensor_fusion[i][5];
+            double  vx          = sensor_fusion[i][3];
+            double  vy          = sensor_fusion[i][4];
+            double  s           = sensor_fusion[i][5];
+            double  d           = sensor_fusion[i][6];
+            int     lane        = (int)d % 4;
 
-              check_car_s += ((double)prev_size * 0.02 * check_speed);
+            // When sensed car is near my car
+            if( (s - car_s <= safety_distance) && (s - car_s >= -safety_distance / 3) 
+            && (d >= 0.0 and d <= 12.0) && (fabs(d - car_d) <= 6) ){
+              double  speed = sqrt(vx*vx + vy*vy);
+              // s += speed * (dt * (double)num_of_path_points); // predict 1sec future
+              vector<double> pred = {s, d, speed};
+              prediction.push_back(pred);
+            }
+          }
+          
+          // car_s += car_speed * dt * (double)num_of_path_points;
+          // vector<double> car_xy = getXY(car_s, car_d, map_waypoints_s, map_waypoints_x, map_waypoints_y);
 
-              // check s value whether it is greater than mine + safety_distance
-              if( (check_car_s > end_path_s) && ((check_car_s - end_path_s) < safety_distance) ){
-                // ref_vel = check_speed * MPS2MPH;
-                too_close = true;
+          // car_x = car_xy[0];
+          // car_y = car_xy[1];
+
+          /*******************************   Finite State Transition   ******************************/
+          vector<int> possible_next_states;
+          switch(car_state){
+            case CL:
+              possible_next_states.push_back(CL);
+              possible_next_states.push_back(KL);
+              break;
+
+            case KL:
+              possible_next_states.push_back(KL);
+              if(can_change_to_the_right_lane){
+                possible_next_states.push_back(CR);
               }
+              if(can_change_to_the_left_lane){
+                possible_next_states.push_back(CL);
+              }
+              break;
+
+            case CR:
+              possible_next_states.push_back(CR);
+              possible_next_states.push_back(KL);
+              break;
+          }
+
+          /*******************************   Path Generation   *************************************/
+          // initiate the target speeds of each lane(left lane, current lane, right lane) by 90% of the maximum speed in m/s
+          double target_speed[3] = {MAX_VEL / MPS2MPH * 0.9, MAX_VEL / MPS2MPH * 0.9, MAX_VEL / MPS2MPH * 0.9};
+          double near_car_s[3] = {999, 999, 999};
+          // check whether car can change the lane or not
+          for(int i = 0; i < prediction.size(); i++){
+            double  s     = prediction[i][0];
+            double  d     = prediction[i][1];
+            double  speed = prediction[i][2];
+            int     lane  = (int)d / 4;
+
+            switch(lane - car_lane){
+              case -1 :   // when the sensed car is left of the my car
+                can_change_to_the_left_lane = can_change_to_the_left_lane && (fabs(s - car_s) >= safety_distance);
+                target_speed[0] = (target_speed[0] > speed) ? speed : target_speed[0];
+                near_car_s[0] = (near_car_s[0] > fabs(s - car_s))? fabs(s - car_s) : near_car_s[0];
+                break;
+              
+              case 0:     // when the sensed car is on the same lane of the my car
+                front_car_is_too_close = (s - car_s >= 0) && (s - car_s <= safety_distance);
+                target_speed[1] = (target_speed[1] > speed) ? speed : target_speed[1];
+                near_car_s[1] = (near_car_s[1] > fabs(s - car_s))? fabs(s - car_s) : near_car_s[1];
+                break;
+
+              case 1 :   // when the sensed car is right of the my car
+                can_change_to_the_right_lane = can_change_to_the_right_lane && (fabs(s - car_s) >= safety_distance);
+                target_speed[2] = (target_speed[2] > speed) ? speed : target_speed[2];
+                near_car_s[2] = (near_car_s[2] > fabs(s - car_s))? fabs(s - car_s) : near_car_s[2];
+                break;
             }
           }
 
-          if(too_close){
-            ref_vel -= 0.224;
-          }
-          else if(ref_vel < (MAX_VEL - 0.5)){
-            // ref_vel = ((ref_vel + 0.224) > (MAX_VEL - 0.5)) ? (MAX_VEL - 0.5) : (ref_vel + 0.224);
-            ref_vel += 0.224;
+          /*******************************   Cost Calculation   ***************************************/
+          double  cost[3]  = {999., 999., 999.};   // CL, KL, CR
+          double  min_cost  = 999.;
+          int     min_state = 0;
+          
+          for(int i = 0; i < possible_next_states.size(); i++){
+            int next_state = possible_next_states[i];
+            
+            switch(next_state){
+              case CL:
+                if(can_change_to_the_left_lane){
+                  // Delta s is calculated in the assumption that the car moves in the constant acceleration
+                  cost[0] = calculate_cost(target_speed[0], (target_speed[0] + car_speed)/2 * dt * num_of_path_points, fmod(car_d, 4.0) + 2);
+                  if(min_cost > cost[0]){
+                    min_cost = cost[0];
+                    min_state = CL;
+                  }
+                }
+                break;
+              
+              case KL:
+                cost[1] = calculate_cost(target_speed[1], (target_speed[1] + car_speed)/2 * dt * num_of_path_points, fmod(car_d, 4.0) - 2);
+                if(min_cost > cost[1]){
+                    min_cost = cost[1];
+                    min_state = KL;
+                  }
+                break;
+
+              case CR:
+                if(can_change_to_the_right_lane){
+                  cost[2] = calculate_cost(target_speed[2], (target_speed[2] + car_speed)/2 * dt * num_of_path_points, 6 - fmod(car_d, 4.0));
+                  if(min_cost > cost[2]){
+                    min_cost = cost[2];
+                    min_state = CR;
+                  }
+                }
+                break;
+            }  
           }
 
-          std::cout << ref_vel << std::endl;
 
-          /********************************   Path Planning   **************************************/          
+          /********************************   Path Planning   **************************************/
+          
+          // if(front_car_is_too_close){
+          //   ref_vel -= 0.5;   // m/s
+          // }
+          // else if(ref_vel < (MAX_VEL - 0.5)){
+          //   // ref_vel = ((ref_vel + 0.224) > (MAX_VEL - 0.5)) ? (MAX_VEL - 0.5) : (ref_vel + 0.224);
+          //   ref_vel += 0.5;   // m/s
+          // }
+          
+          switch(min_state){
+            case CL:
+              ref_vel = target_speed[0];
+              car_lane -= 1;
+              car_state = CL;
+              break;
+            
+            case KL:
+              ref_vel = target_speed[1];
+              car_state = KL;
+              break;
+            
+            case CR:
+              ref_vel = target_speed[2];
+              car_lane += 1;
+              car_state = CR;
+              break;
+          }
+
           for (int i = 0; i < prev_size; ++i) {
             next_x_vals.push_back(previous_path_x[i]);
             next_y_vals.push_back(previous_path_y[i]);
@@ -170,15 +303,15 @@ int main() {
           }
 
           ptsx.push_back(ref_x_prev);
-          ptsx.push_back(ref_x);
-          
           ptsy.push_back(ref_y_prev);
+          
+          ptsx.push_back(ref_x);
           ptsy.push_back(ref_y);
 
           //  Add three points which is evenly spaced by 30 meters ahead from the starting reference
           vector<double> next_wpt;
           for (int i = 1; i <= 3; i++){
-            next_wpt = getXY(car_s + 30*i, (4*lane - 2), map_waypoints_s, map_waypoints_x, map_waypoints_y);
+            next_wpt = getXY(car_s + 30*i, (4*car_lane + 2), map_waypoints_s, map_waypoints_x, map_waypoints_y);
             ptsx.push_back(next_wpt[0]);
             ptsy.push_back(next_wpt[1]);
           }
@@ -209,7 +342,7 @@ int main() {
             //   ref_vel = ( (ref_vel + delta_acc*0.02) > (MAX_VEL - 0.5) ) ? (MAX_VEL - 0.5) : (ref_vel + delta_acc*0.02);
             // }
 
-            double N = target_dist / ((ref_vel / MPS2MPH) * 0.02);
+            double N = target_dist / (ref_vel * 0.02);
             double target_dx = target_x / N;
 
             double x_local = target_dx * i;
@@ -220,6 +353,134 @@ int main() {
             next_x_vals.push_back(x_glob);
             next_y_vals.push_back(y_glob);
           }
+
+          std::cout <<"lane : " << car_lane << "    " << "car_state : " << car_state << std::endl;
+          std::cout << can_change_to_the_left_lane << front_car_is_too_close << can_change_to_the_right_lane << std::endl;
+          
+          std::cout <<"speed : ";
+          for(int i = 0; i < 3; i++){
+            std::cout << target_speed[i] * MPS2MPH << "   ";
+          }
+          std::cout << std::endl;
+          
+          std::cout <<"distance : ";
+          for(int i = 0; i < 3; i++){
+            std::cout << near_car_s[i]<< "   ";
+          }
+          std::cout<< std::endl << std::endl;
+
+          // /*******************************   Sensor Fusion   **************************************/
+          
+          // bool too_close = false;
+
+          // for(int i = 0; i < sensor_fusion.size(); i++){
+          //   float d = sensor_fusion[i][6];
+            
+          //   // When the adjacent car is in the same car_lane
+          //   if(d > (4*car_lane - 4) && d < (4*car_lane) ){
+          //     double  vx           = sensor_fusion[i][3];
+          //     double  vy           = sensor_fusion[i][4];
+          //     double  check_speed  = sqrt(vx*vx + vy*vy);
+          //     double  check_car_s  = sensor_fusion[i][5];
+
+          //     check_car_s += ((double)prev_size * 0.02 * check_speed);
+
+          //     // check s value whether it is greater than mine + safety_distance
+          //     if( (check_car_s > end_path_s) && ((check_car_s - end_path_s) < safety_distance) ){
+          //       // ref_vel = check_speed * MPS2MPH;
+          //       too_close = true;
+          //     }
+          //   }
+          // }
+
+          // if(too_close){
+          //   ref_vel -= 0.224;
+          // }
+          // else if(ref_vel < (MAX_VEL - 0.5)){
+          //   // ref_vel = ((ref_vel + 0.224) > (MAX_VEL - 0.5)) ? (MAX_VEL - 0.5) : (ref_vel + 0.224);
+          //   ref_vel += 0.224;
+          // }
+
+          // std::cout << ref_vel << std::endl;
+
+          // /********************************   Path Planning   **************************************/          
+          // for (int i = 0; i < prev_size; ++i) {
+          //   next_x_vals.push_back(previous_path_x[i]);
+          //   next_y_vals.push_back(previous_path_y[i]);
+          // }
+
+          // // Make spline using previous path
+          // //  Add two previous points which is in the previous path to the point lists 
+          // double ref_x, ref_y, ref_yaw;
+          // double ref_x_prev, ref_y_prev;
+          // vector<double> ptsx, ptsy;
+
+          // if (prev_size < 2) {
+          //   ref_x = car_x;
+          //   ref_y = car_y;
+          //   ref_yaw = deg2rad(car_yaw);
+          //   ref_x_prev = car_x - cos(ref_yaw);
+          //   ref_y_prev = car_y - sin(ref_yaw);
+          // } 
+          // else {
+          //   ref_x = previous_path_x[prev_size-1];
+          //   ref_y = previous_path_y[prev_size-1];
+          //   ref_x_prev = previous_path_x[prev_size-2];
+          //   ref_y_prev = previous_path_y[prev_size-2];
+          //   ref_yaw = atan2(ref_y-ref_y_prev,ref_x-ref_x_prev);
+          // }
+
+          // ptsx.push_back(ref_x_prev);
+          // ptsx.push_back(ref_x);
+          
+          // ptsy.push_back(ref_y_prev);
+          // ptsy.push_back(ref_y);
+
+          // //  Add three points which is evenly spaced by 30 meters ahead from the starting reference
+          // vector<double> next_wpt;
+          // for (int i = 1; i <= 3; i++){
+          //   next_wpt = getXY(car_s + 30*i, (4*car_lane - 2), map_waypoints_s, map_waypoints_x, map_waypoints_y);
+          //   ptsx.push_back(next_wpt[0]);
+          //   ptsy.push_back(next_wpt[1]);
+          // }
+
+          // //  Convert points into local coordinates
+          // for(int i = 0; i<ptsx.size(); i++){
+          //   double shift_x = ptsx[i] - ref_x;
+          //   double shift_y = ptsy[i] - ref_y;
+
+          //   ptsx[i] =  cos(ref_yaw) * shift_x + sin(ref_yaw) * shift_y;
+          //   ptsy[i] = -sin(ref_yaw) * shift_x + cos(ref_yaw) * shift_y;
+          // }
+
+          // //  Create a spline in local coordinates
+          // tk::spline s_local;
+          // s_local.set_points(ptsx, ptsy);
+
+          // double target_x = 30.0;
+          // double target_y = s_local(target_x);
+          // double target_dist = sqrt(target_x * target_x + target_y * target_y);
+          
+          // for(int i = 1; i <= 50 - previous_path_x.size(); i++){
+          //   // if(too_close){
+          //   //   double delta_acc = MAX_JERK * 0.02 * 0.9;
+          //   //   ref_vel -= delta_acc*0.02;
+          //   // }
+          //   // else if(ref_vel < (MAX_VEL - 0.5)){
+          //   //   ref_vel = ( (ref_vel + delta_acc*0.02) > (MAX_VEL - 0.5) ) ? (MAX_VEL - 0.5) : (ref_vel + delta_acc*0.02);
+          //   // }
+
+          //   double N = target_dist / ((ref_vel / MPS2MPH) * 0.02);
+          //   double target_dx = target_x / N;
+
+          //   double x_local = target_dx * i;
+          //   double y_local = s_local(x_local);
+          //   double x_glob = cos(ref_yaw) * x_local - sin(ref_yaw) * y_local + ref_x;
+          //   double y_glob = sin(ref_yaw) * x_local + cos(ref_yaw) * y_local + ref_y;
+
+          //   next_x_vals.push_back(x_glob);
+          //   next_y_vals.push_back(y_glob);
+          // }
       
           /**
            * END

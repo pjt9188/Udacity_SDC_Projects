@@ -10,9 +10,44 @@
 #define MAX_ACC   10    //mps^2
 #define MAX_JERK  10    //mps^3
 
+// States
+#define CL        0     // Change to the left lane
+#define KL        1     // Keep the lane
+#define CR        2     // Change to the left lane
+
 // for convenience
 using std::string;
 using std::vector;
+
+// Calculate the cost
+double calculate_cost(double speed, double delta_s, double delta_d){
+  if(speed < 0){
+    return 999.;   // invalid speed
+  }
+  
+  // Calculate Speed cost
+  double speed_limit = MAX_VEL / MPS2MPH;
+  double stop_cost  = 0.9;
+  
+  double speed_cost;
+  if(speed <= 0.9*speed_limit){
+    speed_cost = stop_cost - (stop_cost / (0.9*speed_limit))*speed;
+  }
+  else if(speed <= speed_limit){
+    speed_cost = (1/(0.1*speed_limit))*speed;
+  }
+  else{
+    speed_cost = 1.;
+  }
+
+  // Calculate lane change penalty
+  if(delta_s < 0){
+    return 999.;     // invalid delta_s
+  }
+  double lane_change_penalty = 1 - exp(-fabs(delta_d)/delta_s);
+
+  return 60*speed_cost + 40*lane_change_penalty;
+}
 
 // Checks if the SocketIO event has JSON data.
 // If there is data the JSON object in string format will be returned,
