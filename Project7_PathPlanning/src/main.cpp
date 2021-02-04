@@ -169,7 +169,7 @@ int main() {
               break;
           }
 
-          /*******************************   Path Generation   *************************************/
+          /*******************************   Behavior Planning   *************************************/
           // initiate the target speeds of each lane(left lane, current lane, right lane) by 90% of the maximum speed in m/s
           double target_speed[3] = {MAX_VEL / MPS2MPH * 0.9, MAX_VEL / MPS2MPH * 0.9, MAX_VEL / MPS2MPH * 0.9}; // m/s
           double near_car_s[3] = {999, 999, 999};
@@ -248,7 +248,7 @@ int main() {
             }  
           }
 
-          /********************************   Path Planning   **************************************/
+          /********************************   Path Generation   **************************************/
           // Decelerate when front car is too close
           if(front_car_is_too_close){
             ref_vel -= 1;

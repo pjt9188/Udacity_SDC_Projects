@@ -140,3 +140,64 @@ that's just a guess.
 One last note here: regardless of the IDE used, every submitted project must
 still be compilable with cmake and make./
 
+---
+
+## Pipeline
+The path planning code in the [main.cpp](src/main.cpp) consists of 5 steps to generate the path of the ego car in the simulator as follows.
+
+### 1. Prediction
+In the prediction step, i only gathered the sensor fusion data near the ego car, specifically, the data of the cars which are within 50m in the s-direction of the **Frenet Coordinates** and are on the adjacent lane.
+
+### 2. Finite State Transition
+As introduced in the lecture, i build a finite state machine which has 3 states.   
+
+**- Keep Lane (KL)**
+  In this state, car keeps its lane and KL, CL, CR can be the next state.   
+
+**- Change to the left lane (CL)**
+  In this state, the ego car changes its lane to the left and CL, KL can be the next state. The reason why CL is included in the possible states is that car updates its state in 20ms. If CL is not included in the possible states, after the ego car's state become CL and ego car changes the lane, the ego car's state become KL and path planner generates the path which make the ego car return to the its original lane line so that car cannot change the left lane.
+
+**- Change to the right lane (CR)**
+Similar with CL, the ego car changes its lane to the right and CR, KL can be the next state.
+
+```cpp
+  vector<int> possible_next_states;
+  switch(car_state){
+    case CL:
+      possible_next_states.push_back(CL);
+      possible_next_states.push_back(KL);
+      break;
+
+    case KL:
+      possible_next_states.push_back(KL);
+      if(can_change_to_the_right_lane){
+        possible_next_states.push_back(CR);
+      }
+      if(can_change_to_the_left_lane){
+        possible_next_states.push_back(CL);
+      }
+      break;
+
+    case CR:
+      possible_next_states.push_back(CR);
+      possible_next_states.push_back(KL);
+      break;
+  }
+
+```
+
+### 3. Behavior Planning
+In the behavior planinng step, i gathered target speeds of the each lane(left lane, current lane, right lane). Also flags are determined which indicate whether can change to the left lane or right lane and whether front car is too close or not
+
+### 4. Cost Calculation
+In the cost calculation, i used two kinds of cost, speed cost and lane change penalty.   
+
+**- Speed cost**
+![Speed Cost](img/speed_cost.png)
+
+**- Lane change cost**
+<a href="https://www.codecogs.com/eqnedit.php?latex=cost&space;=&space;1&space;-&space;e^{-\frac{|\Delta&space;d|}{\Delta&space;s}}" target="_blank"><img src="https://latex.codecogs.com/gif.latex?cost&space;=&space;1&space;-&space;e^{-\frac{|\Delta&space;d|}{\Delta&space;s}}" title="cost = 1 - e^{-\frac{|\Delta d|}{\Delta s}}" /></a>
+
+
+### 5. Path Generation
+In the path generation steps, i used [Cubic Spline interpolation Library](https://kluge.in-chemnitz.de/opensource/spline/) to generate the path. Using the library, i made the path which passes all the previous path points and the target lane line waypoints so that spline can be smooth not causing any over accleartion or jerk.
