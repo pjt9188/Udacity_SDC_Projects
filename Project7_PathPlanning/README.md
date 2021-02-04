@@ -195,9 +195,10 @@ In the cost calculation, i used two kinds of cost, speed cost and lane change pe
 **- Speed cost**
 ![Speed Cost](img/speed_cost.png)
 
-**- Lane change cost**
+**- Lane change cost**   
+<center>
 <a href="https://www.codecogs.com/eqnedit.php?latex=cost&space;=&space;1&space;-&space;e^{-\frac{|\Delta&space;d|}{\Delta&space;s}}" target="_blank"><img src="https://latex.codecogs.com/gif.latex?cost&space;=&space;1&space;-&space;e^{-\frac{|\Delta&space;d|}{\Delta&space;s}}" title="cost = 1 - e^{-\frac{|\Delta d|}{\Delta s}}" /></a>
-
+</center>
 
 ### 5. Path Generation
 In the path generation steps, i used [Cubic Spline interpolation Library](https://kluge.in-chemnitz.de/opensource/spline/) to generate the path. Using the library, i made the path which passes all the previous path points and the target lane line waypoints so that spline can be smooth not causing any over accleartion or jerk.
