@@ -46,7 +46,7 @@ double calculate_cost(double speed, double delta_s, double delta_d){
   }
   double lane_change_penalty = 1 - exp(-fabs(delta_d)/delta_s);
 
-  return 60*speed_cost + 40*lane_change_penalty;
+  return 55*speed_cost + 45*lane_change_penalty;
 }
 
 // Checks if the SocketIO event has JSON data.
