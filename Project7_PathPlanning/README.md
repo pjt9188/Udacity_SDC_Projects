@@ -201,3 +201,8 @@ In the cost calculation, i used two kinds of cost, speed cost and lane change pe
 
 ### 5. Path Generation
 In the path generation steps, i used [Cubic Spline interpolation Library](https://kluge.in-chemnitz.de/opensource/spline/) to generate the path. Using the library, i made the path which passes all the previous path points and the target lane line waypoints so that spline can be smooth not causing any over accleartion or jerk.
+
+## Simulation
+![Simulation](img/Simulator.png)
+
+---
