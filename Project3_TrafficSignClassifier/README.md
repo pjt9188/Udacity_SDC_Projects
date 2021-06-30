@@ -103,7 +103,7 @@ My final model consisted of the following layers:
  
 I build the model which is almost simillar with the model introduced by [Sermanet & LeCun(2011)](http://yann.lecun.com/exdb/publis/pdf/sermanet-ijcnn-11.pdf).  
 
-![visualize_model](examples\visualize_model.png)   
+![visualize_model](examples/visualize_model.png)   
 
 Interestingly, they used Multi-Scale Feature according to [Sermanet & LeCun(2011)](http://yann.lecun.com/exdb/publis/pdf/sermanet-ijcnn-11.pdf). In the model, the output of the first convolution layer is branched out and fed to the classifier, in addition to the output of the second stage.
 
@@ -201,10 +201,4 @@ The top five soft max probabilities were
 | 1.00					| Right-of-way at the next intersection     	|
 | 1.00	      			| Ahead only	      		                    |
 | 1.00				    | Speed limit (30km/h)			                |
-
-For the first image, the model is almost sure that this is a stop sign (probability of 0.982), and the last images are 100% sure.
-
-### (Optional) Visualizing the Neural Network (See Step 4 of the Ipython notebook for more details)
-#### 1. Discuss the visual output of your trained network's feature maps. What characteristics did the neural network use to make classifications?
-
 
